@@ -1,4 +1,4 @@
-# OpSpace - AWS Resource Manager
+# OpSpace - Cloud Resources Self-Service Provision/Deprovision
 
 ## Prerequisites
 
@@ -6,10 +6,10 @@
 - Composer
 - Node.js & NPM
 - Terraform CLI
-- AWS CLI configured with your credentials
-- MySQL or PostgreSQL database
+- AWS CLI
+- Chosen database
 
-## Setup Instructions
+## Local Setup Instructions
 
 1. Clone the repository and install dependencies:
 ```bash
@@ -51,13 +51,15 @@ php artisan migrate
 ```bash
 npm run build
 ```
+7. Serve assets:
+```bash
+npm run dev
+```
 
-7. Start the development server:
+8. Start the development server:
 ```bash
 php artisan serve
 ```
-
-The application will be available at `http://localhost:8000`
 
 ## Usage
 
