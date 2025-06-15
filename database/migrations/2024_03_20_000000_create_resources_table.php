@@ -1,3 +1,5 @@
+<?php
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -8,12 +10,12 @@ return new class extends Migration
     {
         Schema::create('resources', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
+            $table->string('name')->nullable();
             $table->string('type');
-            $table->string('status')->default('pending');
-            $table->json('configuration')->nullable();
+            $table->string('status')->default('PENDING');
+            $table->json('configuration');
             $table->json('terraform_state')->nullable();
-            $table->text('last_error')->nullable();
+            $table->text('error_message')->nullable();
             $table->timestamps();
         });
     }
