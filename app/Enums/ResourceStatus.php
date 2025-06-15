@@ -1,13 +1,15 @@
+<?php
+
 namespace App\Enums;
 
 enum ResourceStatus: string
 {
-    case PENDING = 'pending';
-    case PROVISIONING = 'provisioning';
-    case ACTIVE = 'active';
-    case FAILED = 'failed';
-    case DEPROVISIONING = 'deprovisioning';
-    case DEPROVISIONED = 'deprovisioned';
+    case PENDING = 'PENDING';
+    case PROVISIONING = 'PROVISIONING';
+    case ACTIVE = 'ACTIVE';
+    case FAILED = 'FAILED';
+    case DEPROVISIONING = 'DEPROVISIONING';
+    case DEPROVISIONED = 'DEPROVISIONED';
 
     public function getColor(): string
     {

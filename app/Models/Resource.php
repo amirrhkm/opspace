@@ -1,9 +1,12 @@
+<?php
+
 namespace App\Models;
 
 use App\Enums\ResourceStatus;
 use App\Enums\ResourceType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Services\Terraform\TerraformService;
 
 class Resource extends Model
 {
@@ -15,7 +18,7 @@ class Resource extends Model
         'status',
         'configuration',
         'terraform_state',
-        'last_error',
+        'error_message',
     ];
 
     protected $casts = [
@@ -35,11 +38,11 @@ class Resource extends Model
         $this->update(['status' => ResourceStatus::ACTIVE]);
     }
 
-    public function markAsFailed(string $error): void
+    public function markAsFailed(string $message): void
     {
         $this->update([
             'status' => ResourceStatus::FAILED,
-            'last_error' => $error,
+            'error_message' => $message,
         ]);
     }
 
@@ -50,6 +53,21 @@ class Resource extends Model
 
     public function markAsDeprovisioned(): void
     {
-        $this->update(['status' => ResourceStatus::DEPROVISIONED]);
+        $this->update([
+            'status' => ResourceStatus::DEPROVISIONED,
+            'terraform_state' => null,
+        ]);
+    }
+
+    public function deprovision(): void
+    {
+        $this->update(['status' => ResourceStatus::DEPROVISIONING]);
+        
+        try {
+            app(TerraformService::class)->deprovision($this);
+        } catch (\Exception $e) {
+            $this->markAsFailed($e->getMessage());
+            throw $e;
+        }
     }
 } 

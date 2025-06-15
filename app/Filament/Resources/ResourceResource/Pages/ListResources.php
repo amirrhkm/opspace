@@ -1,3 +1,5 @@
+<?php
+
 namespace App\Filament\Resources\ResourceResource\Pages;
 
 use App\Filament\Resources\ResourceResource;
@@ -14,4 +16,4 @@ class ListResources extends ListRecords
             Actions\CreateAction::make(),
         ];
     }
-} 
+}

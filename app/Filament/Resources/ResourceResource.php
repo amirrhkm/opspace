@@ -1,3 +1,5 @@
+<?php
+
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\ResourceResource\Pages;
@@ -7,6 +9,9 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource as FilamentResource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Collection;
 use App\Enums\ResourceType;
 use App\Enums\ResourceStatus;
 
@@ -16,39 +21,62 @@ class ResourceResource extends FilamentResource
 
     protected static ?string $navigationIcon = 'heroicon-o-cloud';
 
+    protected static ?string $navigationLabel = 'AWS Resources';
+
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
                 Forms\Components\TextInput::make('name')
-                    ->required()
+                    ->label('Resource Name')
+                    ->placeholder('My S3 Bucket')
                     ->maxLength(255),
+
                 Forms\Components\Select::make('type')
-                    ->options(collect(ResourceType::cases())->mapWithKeys(fn ($type) => [$type->value => $type->getLabel()]))
-                    ->required(),
-                Forms\Components\TextInput::make('bucket_name')
+                    ->options([
+                        ResourceType::S3_BUCKET->value => 'S3 Bucket',
+                    ])
                     ->required()
-                    ->visible(fn (Forms\Get $get) => $get('type') === ResourceType::S3_BUCKET->value)
-                    ->maxLength(255),
-                Forms\Components\Select::make('region')
+                    ->disabled(fn (?Model $record) => $record !== null),
+
+                Forms\Components\TextInput::make('configuration.bucket_name')
+                    ->label('Bucket Name')
+                    ->required()
+                    ->maxLength(63)
+                    ->helperText('Must be globally unique, lowercase, and contain only letters, numbers, dots, and hyphens')
+                    ->disabled(fn (?Model $record) => $record !== null),
+
+                Forms\Components\Select::make('configuration.region')
+                    ->label('AWS Region')
                     ->options([
                         'us-east-1' => 'US East (N. Virginia)',
+                        'us-east-2' => 'US East (Ohio)',
+                        'us-west-1' => 'US West (N. California)',
                         'us-west-2' => 'US West (Oregon)',
                         'eu-west-1' => 'EU (Ireland)',
+                        'eu-central-1' => 'EU (Frankfurt)',
+                        'ap-southeast-1' => 'Asia Pacific (Singapore)',
+                        'ap-southeast-2' => 'Asia Pacific (Sydney)',
+                        'ap-northeast-1' => 'Asia Pacific (Tokyo)',
+                        'ap-northeast-2' => 'Asia Pacific (Seoul)',
+                        'ap-northeast-3' => 'Asia Pacific (Osaka)',
+                        'ca-central-1' => 'Canada (Central)',
+                        'cn-north-1' => 'China (Beijing)',
                     ])
-                    ->default('us-east-1')
-                    ->required(),
-                Forms\Components\Toggle::make('versioning_enabled')
-                    ->visible(fn (Forms\Get $get) => $get('type') === ResourceType::S3_BUCKET->value)
-                    ->default(false),
-                Forms\Components\Select::make('environment')
-                    ->options([
-                        'development' => 'Development',
-                        'staging' => 'Staging',
-                        'production' => 'Production',
-                    ])
-                    ->default('development')
-                    ->required(),
+                    ->required()
+                    ->disabled(fn (?Model $record) => $record !== null),
+
+                Forms\Components\Toggle::make('configuration.versioning_enabled')
+                    ->label('Enable Versioning')
+                    ->default(false)
+                    ->disabled(fn (?Model $record) => $record !== null),
+
+                Forms\Components\KeyValue::make('configuration.tags')
+                    ->label('Tags')
+                    ->keyLabel('Key')
+                    ->valueLabel('Value')
+                    ->reorderable(false)
+                    ->disabled(fn (?Model $record) => $record !== null),
             ]);
     }
 
@@ -59,38 +87,62 @@ class ResourceResource extends FilamentResource
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('type')
-                    ->formatStateUsing(fn (ResourceType $state) => $state->getLabel()),
+                    ->badge(),
+                Tables\Columns\TextColumn::make('configuration.bucket_name')
+                    ->label('Bucket Name')
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('configuration.region')
+                    ->label('Region'),
+                Tables\Columns\IconColumn::make('configuration.versioning_enabled')
+                    ->label('Versioning')
+                    ->boolean(),
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
-                    ->color(fn (ResourceStatus $state) => $state->getColor()),
+                    ->color(fn ($state) => match ($state?->value ?? $state) {
+                        ResourceStatus::PENDING->value => 'gray',
+                        ResourceStatus::PROVISIONING->value => 'gray',
+                        ResourceStatus::ACTIVE->value => 'success',
+                        ResourceStatus::FAILED->value => 'danger',
+                        ResourceStatus::DEPROVISIONING->value => 'warning',
+                        ResourceStatus::DEPROVISIONED->value => 'info',
+                        default => 'gray',
+                    }),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable(),
             ])
+            ->filters([
+                Tables\Filters\SelectFilter::make('type')
+                    ->options([
+                        ResourceType::S3_BUCKET->value => 'S3 Bucket',
+                    ]),
+                Tables\Filters\SelectFilter::make('status')
+                    ->options([
+                        ResourceStatus::PENDING->value => 'Pending',
+                        ResourceStatus::PROVISIONING->value => 'Provisioning',
+                        ResourceStatus::ACTIVE->value => 'Active',
+                        ResourceStatus::FAILED->value => 'Failed',
+                        ResourceStatus::DEPROVISIONING->value => 'Deprovisioning',
+                        ResourceStatus::DEPROVISIONED->value => 'Deprovisioned',
+                    ]),
+            ])
             ->actions([
-                Tables\Actions\Action::make('provision')
-                    ->action(function (Resource $record) {
-                        app(\App\Services\Terraform\TerraformService::class)->provision($record);
-                    })
-                    ->requiresConfirmation()
-                    ->visible(fn (Resource $record) => 
-                        in_array($record->status, [ResourceStatus::PENDING, ResourceStatus::FAILED])),
+                Tables\Actions\ViewAction::make(),
                 Tables\Actions\Action::make('deprovision')
-                    ->action(function (Resource $record) {
-                        app(\App\Services\Terraform\TerraformService::class)->deprovision($record);
-                    })
+                    ->action(fn (Resource $record) => $record->deprovision())
                     ->requiresConfirmation()
                     ->color('danger')
+                    ->icon('heroicon-o-trash')
                     ->visible(fn (Resource $record) => $record->status === ResourceStatus::ACTIVE),
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+            ])
+            ->bulkActions([
+                Tables\Actions\BulkAction::make('deprovision')
+                    ->action(fn (Collection $records) => $records->each->deprovision())
+                    ->requiresConfirmation()
+                    ->color('danger')
+                    ->icon('heroicon-o-trash')
+                    ->deselectRecordsAfterCompletion(),
             ]);
-    }
-
-    public static function getRelations(): array
-    {
-        return [];
     }
 
     public static function getPages(): array
@@ -98,7 +150,7 @@ class ResourceResource extends FilamentResource
         return [
             'index' => Pages\ListResources::route('/'),
             'create' => Pages\CreateResource::route('/create'),
-            'edit' => Pages\EditResource::route('/{record}/edit'),
+            'view' => Pages\ViewResource::route('/{record}'),
         ];
     }
-} 
+}

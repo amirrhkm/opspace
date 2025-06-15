@@ -1,0 +1,49 @@
+@import '/vendor/filament/filament/resources/css/theme.css';
+
+@config './tailwind.config.js';
+
+:root {
+    --sidebar-width: 20rem;
+    --container-padding: 2rem;
+    --navbar-height: 4rem;
+}
+
+.fi-sidebar {
+    @apply bg-white dark:bg-gray-900;
+}
+
+.fi-main {
+    @apply bg-gray-50 dark:bg-gray-950;
+}
+
+.fi-topbar {
+    @apply bg-white dark:bg-gray-900;
+}
+
+.fi-ta-content {
+    @apply p-6;
+}
+
+.fi-fo-field-wrp {
+    @apply p-6;
+}
+
+.fi-modal-window {
+    @apply rounded-xl;
+}
+
+.fi-btn {
+    @apply rounded-lg;
+}
+
+.fi-input {
+    @apply rounded-lg;
+}
+
+.fi-select {
+    @apply rounded-lg;
+}
+
+.fi-badge {
+    @apply rounded-lg;
+} 

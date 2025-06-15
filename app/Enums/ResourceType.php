@@ -1,8 +1,10 @@
+<?php
+
 namespace App\Enums;
 
 enum ResourceType: string
 {
-    case S3_BUCKET = 's3_bucket';
+    case S3_BUCKET = 'S3_BUCKET';
     // We can add more resource types here in the future
     
     public function getLabel(): string
